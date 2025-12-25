@@ -14,14 +14,14 @@ def run_phase1_pipeline(item_name: str) -> dict:
     html_content = fetch_html_scraperapi(item_name)
 
     if not html_content:
-        return {"Error, failed to fetrch data from eBay"}
+        return {"Error": "failed to fetrch data from eBay"}
     print(f"Got {len(html_content)} html characters")
 
 
     price_list = extract_prices_from_html(html_content)
 
     if not price_list:
-        return {"Error: could not extract from the page"}
+        return {"Error": "could not extract from the page"}
     print(f"extracted {len(price_list)} prices")
 
 
@@ -32,7 +32,7 @@ def run_phase1_pipeline(item_name: str) -> dict:
 
 if __name__ == "__main__":
 
-    test_items = ["books", "Playstation 5", "leather jacket"]
+    test_items = ["iPhone 15", "Playstation 5", "RTX 3090"]
 
     for item in test_items:
         result = run_phase1_pipeline(item)

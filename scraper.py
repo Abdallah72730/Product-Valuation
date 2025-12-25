@@ -4,7 +4,7 @@ import requests
 def construct_ebay_url(item_name: str) -> str:
     searchquery = item_name.replace(" ", "+")
 
-    url = f"https://www.ebay.com/sch/i.html?_nkw={searchquery}&LH_Sold=1&LH_Complete=1"
+    url = f"https://www.ebay.ca/sch/i.html?_nkw={searchquery}&LH_Sold=1&LH_Complete=1"
 
     return url
 
