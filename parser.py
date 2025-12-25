@@ -1,35 +1,58 @@
 import re 
-9
 
 def extract_prices_from_html(html : str) -> list:
 
     if not html:
         return []
 
-    price_pattern = r"\$?\s*(\d{1,3}(?:,\d{3})*\.?\d{0,2})"
-
-
-    #findall is basically just camparing everything in the html and extracts things that matches the pattern! 
-    matches = re.findall(price_pattern, html)
-
-    prices = []
-    for match in matches:
-
-        #rmoves commas
-        clean_match = match.replace(",", "")
-
-        try:
-            price = float(clean_match)
-
-            # check just to make sure prices make sense
-            if 0 < price < 100000:
-                prices.append(price)
-        except ValueError:
+    # Strategy: Extract candidates, then VALIDATE
+    candidates = re.findall(r'\$?\s*[\d,.]+', html)
+    
+    print(f"[Parser] Found {len(candidates)} raw candidates")
+    
+    valid_prices = []
+    
+    for candidate in candidates:
+        # VALIDATION 1: Count dots in ORIGINAL string
+        # "12.365.23" → 2 dots → REJECT ENTIRE THING
+        if candidate.count('.') > 1:
+            print(f"  [Reject] Multiple dots: '{candidate}'")
             continue
-
-    print(f"Found {len(prices)} in the raw HTML")
-
-    return prices 
+        
+        # VALIDATION 2: No dot at end
+        if candidate.endswith('.'):
+            print(f"  [Reject] Trailing dot: '{candidate}'")
+            continue
+        
+        # Clean
+        clean = candidate.replace('$', '').replace(',', '').strip()
+        
+        # TRUNCATION (not rounding)
+        if '.' in clean:
+            parts = clean.split('.')
+            integer = parts[0]
+            decimal = parts[1]
+            
+            if len(decimal) > 2:
+                # Simple truncation: "365" → "36"
+                clean = f"{integer}.{decimal[:2]}"
+            elif len(decimal) == 0:
+                # Shouldn't happen due to validation, but safe
+                clean = integer
+        
+        # Convert and validate range
+        try:
+            price = float(clean)
+            if 0.99 < price < 10000:  # Realistic range
+                valid_prices.append(price)
+            else:
+                print(f"  [Reject] Unrealistic price: ${price}")
+        except ValueError:
+            print(f"  [Reject] Not a number: '{candidate}'")
+            continue
+    
+    print(f"[Parser] Kept {len(valid_prices)} valid prices")
+    return valid_prices
 
 
 if __name__ == "__main__":
