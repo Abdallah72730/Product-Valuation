@@ -16,12 +16,10 @@ def extract_prices_from_html(html : str) -> list:
         # VALIDATION 1: Count dots in ORIGINAL string
         # "12.365.23" → 2 dots → REJECT ENTIRE THING
         if candidate.count('.') > 1:
-            print(f"  [Reject] Multiple dots: '{candidate}'")
             continue
         
         # VALIDATION 2: No dot at end
         if candidate.endswith('.'):
-            print(f"  [Reject] Trailing dot: '{candidate}'")
             continue
         
         # Clean
@@ -43,12 +41,11 @@ def extract_prices_from_html(html : str) -> list:
         # Convert and validate range
         try:
             price = float(clean)
-            if 0.99 < price < 10000:  # Realistic range
+            if 0.99 < price < 100000:  # Realistic range
                 valid_prices.append(price)
             else:
-                print(f"  [Reject] Unrealistic price: ${price}")
+                continue
         except ValueError:
-            print(f"  [Reject] Not a number: '{candidate}'")
             continue
     
     print(f"[Parser] Kept {len(valid_prices)} valid prices")
