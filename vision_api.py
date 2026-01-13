@@ -7,7 +7,7 @@ except:
     Google_api_key = os.getenv("GOOGLE_API_KEY")
 
 
-
+response = ""
 """
 this function:
 1. sends image to Google vision api

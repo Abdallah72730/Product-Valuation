@@ -9,16 +9,44 @@ import time
 #adding current directory to python path so we can import Phase 1 modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__))) 
 
-#importing phase 1 modules
+#importing phase 1, 2 & 3 modules
 try:
     from scraper import fetch_html_scraperapi   
     from parser import extract_prices_from_html
     from analyzer import generate_report
-    from vision_api import analyze_image
     print("successfully imported modules ")
-except ImportError as e:
+
+    try:
+        from vision_api import analyze_image
+        import inspect
+        if inspect.iscoroutinefunction(analyze_image):
+            analyze_image_func = analyze_image
+        else:
+            async def analyze_image_func(image_bytes):
+                return analyze_image(image_bytes)
+
+        try: 
+            from vision_api import Google_api_key as key
+            Google_api_key = key
+        except:
+            Google_api_key = None
+
+        print(f"vision_api imported: API key: {'Set' if Google_api_key else 'Not set' }")
+    except ImportError as e:
+        print(f"vision_api import failed: {e}")
+
+        #create fallback
+        async def analyze_image_func(image_bytes):
+            return {
+                "labels":["product"],
+                "text":[],
+                "best_guess": "product",
+                "error":"Google Vision ot available"
+            }
+except:
     print(f"Error importing modules: {e}")
     sys.exit(1)
+
 
 #initialize fastAPI app
 app = FastAPI(title="Valuation API", version="1.0")
@@ -52,8 +80,8 @@ def read_root():
 def health_check():
     """Check if api dependencies are working"""
 
-    google_status = "configured" if Google_api_key else "Not configured"
-    return {"status":"healthy", "timestamp":time.time(), "google_vision":google_status}
+    # google_status = "configured" if Google_api_key else "Not configured"
+    return {"status":"healthy", "timestamp":time.time()}
 
 @app.get("/value/{item_name}")
 def get_valuation(
@@ -83,7 +111,6 @@ def get_valuation(
 
         #condition adjustment
         adjusted_value = apply_condition_adjustment(report["median"], condition)
-
         #prepare response
 
         response = {
@@ -144,7 +171,7 @@ def calculate_confidence(data_points: int, price_range:float) -> str:
 implements image recognition 
 """
 @app.post("/analyze_image")
-async def analyze_image(
+async def analyze_image_endpoint(
     file: UploadFile = File(...),
     condition: Optional[str] = Form("Good")
 ):
@@ -158,9 +185,10 @@ async def analyze_image(
         image_data = await file.read()
 
         #analyze with google
-        analysis = analyze_image(image_data)
+        analysis =  await analyze_image_func(image_data)
 
         search_query = analysis.get("best_guess", "unknown")
+        print(f"Searching for: {search_query}")
 
         html_content = fetch_html_scraperapi(search_query)
         
@@ -175,23 +203,14 @@ async def analyze_image(
         adjusted_value = apply_condition_adjustment(report["median"], condition)
 
         return {
-            "image_analysis":{
-                "filename":file.filename,
-                "google_results": analysis,
-                "search_used": search_query
-            },
-            "valuation":{
-                "item": search_query,
-                "condition": condition,
-                "estimated_value":adjusted_value,
-                "confidence":calculate_confidence(report["data_points"], report["range"]),
-                "data_summary":{
-                    "sold_listings_analyzed": report["data_points"],
-                    "price_range":f"${report['minimum']:.2f} - ${report['maximum'   ]:.2f}",
-                    "median_price":report["median"],   
-                }
-            }
-        }
+             "success": True,
+            "detected_product": search_query,
+            "condition": condition,
+            "estimated_value": adjusted_value,
+            "data_points": report["data_points"],
+            "price_range": f"${report['minimum']:.2f} - ${report['maximum']:.2f}",
+            "labels_found": analysis.get("labels", [])[:3]
+        }    
     except HTTPException:
         raise
     except Exception as e:
